@@ -17,6 +17,22 @@ layout survives resolution changes.
 
 Commands: `/touch` (settings), `/touch on|off`, `/touch edit`, `/touch reset`.
 
+## Installing in game (custom repository)
+
+1. In game type `/xlsettings`, open the **Experimental** tab.
+2. Under **Custom Plugin Repositories** paste this URL into the empty row, click **+**, tick it, then **Save and Close**:
+
+   ```
+   https://raw.githubusercontent.com/chaitat2009/ffxiv-touch-control/main/repo.json
+   ```
+
+3. `/xlplugins` → search for **Touch Control** → **Install**.
+4. `/touch` opens the settings, `/touch edit` lets you arrange the controls.
+
+Every push to `main` is built by GitHub Actions against the current Dalamud release, published as a GitHub
+Release (`latest.zip`) and `repo.json` is regenerated from the plugin manifest, so the in-game installer
+always sees the newest version.
+
 ## Recommended game settings
 
 * **Character Configuration → Control Settings → Movement Settings → Legacy.** With Legacy movement a diagonal
@@ -36,17 +52,16 @@ Requirements: .NET 10 SDK and a Dalamud installation. XIVLauncher puts one in
 dotnet build -c Release
 ```
 
-The output lands in `TouchControl/bin/x64/Release/TouchControl/` together with `TouchControl.json` and a
-`latest.zip` produced by DalamudPackager.
+The output lands in `TouchControl/bin/Release/TouchControl/` (`bin/x64/Release/...` when built from the
+solution in Visual Studio) together with `TouchControl.json` and a `latest.zip` produced by DalamudPackager.
 
 ## Installing (dev plugin)
 
 1. In game, `/xlsettings` → **Experimental** → **Dev Plugin Locations** → add the full path to
-   `TouchControl/bin/x64/Release/TouchControl/TouchControl.dll` (or the Debug path) → Save.
+   `TouchControl/bin/Release/TouchControl/TouchControl.dll` (or the Debug path) → Save.
 2. `/xlplugins` → **Dev Tools** → **Installed Dev Plugins** → enable *Touch Control*.
 3. `/touch` opens the settings; `/touch edit` lets you arrange the controls.
 
-To ship it through a custom plugin repository, host `latest.zip` somewhere and point `repo.json` at it.
 
 ## How input reaches the game
 

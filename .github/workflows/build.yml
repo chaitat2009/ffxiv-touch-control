@@ -43,7 +43,12 @@ jobs:
         id: out
         shell: pwsh
         run: |
-          $dir = "$env:PLUGIN_NAME/bin/x64/Release/$env:PLUGIN_NAME"
+          # DalamudPackager writes <OutputPath>/<AssemblyName>/; OutputPath differs between plain `dotnet build`
+          # (bin/Release) and an x64 solution build (bin/x64/Release), so find the manifest instead of guessing.
+          $manifestFile = Get-ChildItem -Path "$env:PLUGIN_NAME/bin" -Recurse -Filter "$env:PLUGIN_NAME.json" |
+            Where-Object { $_.Directory.Name -eq $env:PLUGIN_NAME } | Select-Object -First 1
+          if (-not $manifestFile) { throw "Packager output not found under $env:PLUGIN_NAME/bin" }
+          $dir = $manifestFile.Directory.FullName
           Get-ChildItem $dir
           if (-not (Test-Path "$dir/latest.zip")) {
             Compress-Archive -Path "$dir/*" -DestinationPath "$dir/latest.zip" -Force

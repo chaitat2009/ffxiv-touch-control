@@ -1,35 +1,33 @@
 [
-  [
-    {
-      "Author": "chaitat2009",
-      "Name": "Touch Control",
-      "InternalName": "TouchControl",
-      "AssemblyVersion": "0.1.0.0",
-      "Description": "Draws a mobile-game style control overlay on top of FFXIV for touchscreens and handhelds.\r\nA virtual joystick drives movement, a configurable skill wheel mirrors your hotbars with cooldowns,\r\nand quick buttons open the main menu windows, jump, sprint, target and interact.\r\nEvery control can be dragged and resized in edit mode.",
-      "ApplicableVersion": "any",
-      "RepoUrl": "https://github.com/chaitat2009/ffxiv-touch-control",
-      "Tags": [
-        "touch",
-        "controller",
-        "overlay",
-        "joystick",
-        "handheld",
-        "accessibility"
-      ],
-      "DalamudApiLevel": 15,
-      "LoadRequiredState": 0,
-      "LoadSync": false,
-      "CanUnloadAsync": false,
-      "LoadPriority": 0,
-      "Punchline": "Gacha-style on-screen touch controls: virtual joystick, skill wheel and menu buttons.",
-      "AcceptsFeedback": true,
-      "IsHide": false,
-      "IsTestingExclusive": false,
-      "DownloadLinkInstall": "https://github.com/chaitat2009/ffxiv-touch-control/releases/latest/download/latest.zip",
-      "DownloadLinkTesting": "https://github.com/chaitat2009/ffxiv-touch-control/releases/latest/download/latest.zip",
-      "DownloadLinkUpdate": "https://github.com/chaitat2009/ffxiv-touch-control/releases/latest/download/latest.zip",
-      "DownloadCount": 0,
-      "LastUpdate": 1789806692
-    }
-  ]
+  {
+    "Author": "chaitat2009",
+    "Name": "Touch Control",
+    "InternalName": "TouchControl",
+    "AssemblyVersion": "0.1.0.0",
+    "Description": "Draws a mobile-game style control overlay on top of FFXIV for touchscreens and handhelds.\r\nA virtual joystick drives movement, a configurable skill wheel mirrors your hotbars with cooldowns,\r\nand quick buttons open the main menu windows, jump, sprint, target and interact.\r\nEvery control can be dragged and resized in edit mode.",
+    "ApplicableVersion": "any",
+    "RepoUrl": "https://github.com/chaitat2009/ffxiv-touch-control",
+    "Tags": [
+      "touch",
+      "controller",
+      "overlay",
+      "joystick",
+      "handheld",
+      "accessibility"
+    ],
+    "DalamudApiLevel": 15,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
+    "LoadPriority": 0,
+    "Punchline": "Gacha-style on-screen touch controls: virtual joystick, skill wheel and menu buttons.",
+    "AcceptsFeedback": true,
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/chaitat2009/ffxiv-touch-control/releases/latest/download/latest.zip",
+    "DownloadLinkTesting": "https://github.com/chaitat2009/ffxiv-touch-control/releases/latest/download/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/chaitat2009/ffxiv-touch-control/releases/latest/download/latest.zip",
+    "DownloadCount": 0,
+    "LastUpdate": 1789806813
+  }
 ]

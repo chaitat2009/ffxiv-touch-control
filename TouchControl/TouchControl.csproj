@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <!-- Manifest fields consumed by DalamudPackager -->
+    <Author>chaitat2009</Author>
+    <Name>Touch Control</Name>
+    <Punchline>Gacha-style on-screen touch controls: virtual joystick, skill wheel and menu buttons.</Punchline>
+    <Description>Draws a mobile-game style control overlay on top of FFXIV for touchscreens and handhelds.
+A virtual joystick drives movement, a configurable skill wheel mirrors your hotbars with cooldowns,
+and quick buttons open the main menu windows, jump, sprint, target and interact.
+Every control can be dragged and resized in edit mode.</Description>
+    <RepoUrl>https://github.com/chaitat2009/ffxiv-touch-control</RepoUrl>
+    <Tags>touch;controller;overlay;joystick;handheld;accessibility</Tags>
+    <RootNamespace>TouchControl</RootNamespace>
+    <AssemblyName>TouchControl</AssemblyName>
+  </PropertyGroup>
+</Project>

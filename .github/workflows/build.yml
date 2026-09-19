@@ -1,0 +1,113 @@
+name: Build and publish
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PLUGIN_NAME: TouchControl
+  DALAMUD_HOME: ${{ github.workspace }}/dalamud
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download Dalamud
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:DALAMUD_HOME"
+          Get-Content "$env:DALAMUD_HOME/Dalamud.deps.json" | Select-Object -First 5
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --no-restore -c Release
+
+      - name: Collect output
+        id: out
+        shell: pwsh
+        run: |
+          $dir = "$env:PLUGIN_NAME/bin/x64/Release/$env:PLUGIN_NAME"
+          Get-ChildItem $dir
+          if (-not (Test-Path "$dir/latest.zip")) {
+            Compress-Archive -Path "$dir/*" -DestinationPath "$dir/latest.zip" -Force
+          }
+          $manifest = Get-Content "$dir/$env:PLUGIN_NAME.json" | ConvertFrom-Json
+          "version=$($manifest.AssemblyVersion)" >> $env:GITHUB_OUTPUT
+          "dir=$dir" >> $env:GITHUB_OUTPUT
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_NAME }}-${{ steps.out.outputs.version }}
+          path: |
+            ${{ steps.out.outputs.dir }}/latest.zip
+            ${{ steps.out.outputs.dir }}/${{ env.PLUGIN_NAME }}.json
+
+      # Everything below only runs for pushes to main: publish a release and refresh repo.json so the
+      # in-game custom repository (raw.githubusercontent.com/.../main/repo.json) always points at a real zip.
+      - name: Create or update release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v${{ steps.out.outputs.version }}"
+          $zip = "${{ steps.out.outputs.dir }}/latest.zip"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag $zip --title "Touch Control $tag" --notes "Automated build of ${{ github.sha }}." --latest
+          } else {
+            gh release upload $tag $zip --clobber
+          }
+
+      - name: Regenerate repo.json
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          $manifest = Get-Content "${{ steps.out.outputs.dir }}/$env:PLUGIN_NAME.json" | ConvertFrom-Json
+          $link = "https://github.com/${{ github.repository }}/releases/latest/download/latest.zip"
+
+          $entry = [ordered]@{}
+          foreach ($p in $manifest.PSObject.Properties) { $entry[$p.Name] = $p.Value }
+          $entry["IsHide"] = $false
+          $entry["IsTestingExclusive"] = $false
+          $entry["DownloadLinkInstall"] = $link
+          $entry["DownloadLinkTesting"] = $link
+          $entry["DownloadLinkUpdate"] = $link
+          $entry["DownloadCount"] = 0
+          $entry["LastUpdate"] = [int64][Math]::Floor((Get-Date -AsUTC).Subtract([datetime]'1970-01-01').TotalSeconds)
+
+          ConvertTo-Json -InputObject @($entry) -Depth 8 -AsArray | Set-Content -Encoding utf8 repo.json
+          Get-Content repo.json
+
+      - name: Commit repo.json
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add repo.json
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore: update repo.json for v${{ steps.out.outputs.version }} [skip ci]"
+            git push
+          } else {
+            Write-Host "repo.json unchanged"
+          }

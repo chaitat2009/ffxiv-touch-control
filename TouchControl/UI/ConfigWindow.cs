@@ -104,6 +104,14 @@ public sealed class ConfigWindow : Window
         ImGui.SameLine();
         if (ImGui.Button("Release all keys")) Plugin.Instance?.Overlay.ReleaseEverything();
 
+        ImGui.Separator();
+        ImGui.Text("Multi-touch");
+        var touch = Plugin.Instance?.Touch;
+        if (touch == null || !touch.Installed)
+            ImGui.TextWrapped($"Unavailable: {touch?.InstallError ?? "not installed yet"}. Only the primary finger (mouse) will work.");
+        else
+            ImGui.TextWrapped($"Active. Live touch contacts: {touch.TouchCount}. Touches on controls never reach the game; everything else passes through.");
+
         ImGui.Spacing();
         ImGui.TextWrapped("Tip: set Character Configuration > Control Settings > Movement Settings to \"Legacy\" so diagonal joystick input moves relative to the camera like a mobile game.");
     }
@@ -359,6 +367,9 @@ public sealed class ConfigWindow : Window
             Cfg.Save();
         }
 
+        ImGui.Separator();
+        Bool("Second finger on the world rotates the camera", c.SecondFingerRotates, v => c.SecondFingerRotates = v);
+        ImGui.TextWrapped("While one finger holds the joystick or a button, Windows gives the game no mouse input for a second finger, so the plugin rotates the camera for it.");
         Float("Sensitivity", c.Sensitivity, 0.001f, 0.03f, v => c.Sensitivity = v, "%.4f");
         Bool("Invert vertical", c.InvertY, v => c.InvertY = v);
         Bool("Show faint outline", c.ShowOutline, v => c.ShowOutline = v);
@@ -378,7 +389,8 @@ public sealed class ConfigWindow : Window
         ImGui.BulletText("Skill wheels: mirror hotbar slots and execute them through the game, so cooldowns, macros and combos behave normally.");
         ImGui.BulletText("Buttons: keys are held while touched; Sprint, Mount and the like use the game action directly.");
         ImGui.BulletText("Menu bar: opens the main-menu windows; the leftmost button sends Escape.");
-        ImGui.BulletText("Camera: drag on the world like you would with a mouse. The optional camera pad is only for setups where that fails.");
+        ImGui.BulletText("Camera: drag on the world. While another finger holds a control, a second finger rotates the camera too.");
+        ImGui.BulletText("Multi-touch: each finger owns the control it lands on, so you can move and press skills at the same time.");
 
         ImGui.Separator();
         ImGui.TextWrapped("Edit mode lets you drag every control. Hover a control and scroll to resize it. Positions are stored as screen fractions so they survive resolution changes.");

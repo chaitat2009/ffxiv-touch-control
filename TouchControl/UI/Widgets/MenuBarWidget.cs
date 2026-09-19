@@ -40,7 +40,7 @@ public sealed class MenuBarWidget(GameActions game, KeySender keys, SheetCache s
 
         try
         {
-            var edit = Overlay.EditHandle(cfg.Placement, topLeft, size, "Menu bar", editMode);
+            var edit = Overlay.EditHandle("menubar", cfg.Placement, topLeft, size, "Menu bar", editMode);
             var fill = Overlay.Col(0.08f, 0.08f, 0.1f, 0.7f);
             var glyphColor = Overlay.Col(1f, 1f, 1f, 0.95f);
 
@@ -49,7 +49,7 @@ public sealed class MenuBarWidget(GameActions game, KeySender keys, SheetCache s
 
             if (cfg.ShowEscapeButton)
             {
-                var state = Overlay.CircleButton("##esc", new Vector2(x, y), radius, fill, null, string.Empty, !edit);
+                var state = Overlay.CircleButton(TouchInput.Key("menu:esc"), new Vector2(x, y), radius, fill, null, string.Empty, !edit);
                 Overlay.IconGlyph(new Vector2(x, y), FontAwesomeIcon.Bars, glyphColor);
                 // Held for as long as it is touched, like a physical key, so the game reliably sees the press.
                 if (state.Pressed) keys.Down((int)VirtualKey.ESCAPE);
@@ -64,7 +64,7 @@ public sealed class MenuBarWidget(GameActions game, KeySender keys, SheetCache s
                 var icon = entry != null ? Overlay.Icon(entry.Value.IconId) : null;
                 var label = entry?.Name ?? $"MC {id}";
 
-                var state = Overlay.CircleButton($"##mc{i}", new Vector2(x, y), radius, fill, icon, icon == null ? Abbrev(label) : string.Empty, !edit);
+                var state = Overlay.CircleButton(TouchInput.Key("menu:mc", i), new Vector2(x, y), radius, fill, icon, icon == null ? Abbrev(label) : string.Empty, !edit);
                 if (!edit && state.Hovered) ImGui.SetTooltip(label);
                 if (state.Pressed && !edit) game.ExecuteMainCommand(id);
                 x += step;
@@ -72,7 +72,7 @@ public sealed class MenuBarWidget(GameActions game, KeySender keys, SheetCache s
 
             if (cfg.ShowSettingsButton)
             {
-                var state = Overlay.CircleButton("##cfg", new Vector2(x, y), radius, fill, null, string.Empty, !edit);
+                var state = Overlay.CircleButton(TouchInput.Key("menu:cfg"), new Vector2(x, y), radius, fill, null, string.Empty, !edit);
                 Overlay.IconGlyph(new Vector2(x, y), FontAwesomeIcon.Cog, glyphColor);
                 if (state.Pressed && !edit) openSettings();
                 x += step;
@@ -80,7 +80,7 @@ public sealed class MenuBarWidget(GameActions game, KeySender keys, SheetCache s
 
             if (cfg.ShowHideButton)
             {
-                var state = Overlay.CircleButton("##hide", new Vector2(x, y), radius, fill, null, string.Empty, !edit);
+                var state = Overlay.CircleButton(TouchInput.Key("menu:hide"), new Vector2(x, y), radius, fill, null, string.Empty, !edit);
                 Overlay.IconGlyph(new Vector2(x, y), FontAwesomeIcon.EyeSlash, glyphColor);
                 if (state.Pressed && !edit) hideOverlay();
             }

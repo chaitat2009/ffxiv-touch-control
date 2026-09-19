@@ -30,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly GameActions game = new();
 
     internal KeySender Keys { get; }
+    internal TouchInput Touch { get; }
     internal OverlayRenderer Overlay { get; }
 
     public Plugin()
@@ -44,9 +45,10 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         Keys = new KeySender { Backend = Config.KeyBackend };
+        Touch = new TouchInput();
         var sheets = new SheetCache();
 
-        Overlay = new OverlayRenderer(game, Keys, sheets, ToggleConfig, HideOverlay);
+        Overlay = new OverlayRenderer(game, Keys, Touch, sheets, ToggleConfig, HideOverlay);
         configWindow = new ConfigWindow(sheets);
         windowSystem.AddWindow(configWindow);
 
@@ -73,6 +75,7 @@ public sealed class Plugin : IDalamudPlugin
 
         windowSystem.RemoveAllWindows();
         Overlay.ReleaseEverything();
+        Touch.Dispose();
         Keys.Dispose();
 
         Instance = null;
@@ -86,6 +89,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnFrameworkUpdate(IFramework framework)
     {
+        // The WndProc subclass has to be installed from the thread that owns the game window, which is this one.
+        if (!Touch.Installed && Touch.InstallError == null) Touch.TryInstall(Keys.GameWindow);
+
         Overlay.OnFrameworkUpdate();
         game.Drain();
     }

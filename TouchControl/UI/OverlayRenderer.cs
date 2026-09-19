@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using TouchControl.Game;
@@ -13,7 +14,9 @@ namespace TouchControl.UI;
 /// </summary>
 public sealed class OverlayRenderer
 {
+    private readonly GameActions game;
     private readonly KeySender keys;
+    private readonly TouchInput touch;
     private readonly JoystickWidget joystick;
     private readonly SkillGroupWidget skills;
     private readonly ActionButtonWidget buttons;
@@ -22,9 +25,11 @@ public sealed class OverlayRenderer
 
     private int updatesWithoutDraw;
 
-    public OverlayRenderer(GameActions game, KeySender keys, SheetCache sheets, Action openSettings, Action hideOverlay)
+    public OverlayRenderer(GameActions game, KeySender keys, TouchInput touch, SheetCache sheets, Action openSettings, Action hideOverlay)
     {
+        this.game = game;
         this.keys = keys;
+        this.touch = touch;
         var movement = new MovementController(keys);
 
         joystick = new JoystickWidget(movement);
@@ -32,6 +37,8 @@ public sealed class OverlayRenderer
         buttons = new ActionButtonWidget(game, keys, sheets, openSettings, hideOverlay);
         menuBar = new MenuBarWidget(game, keys, sheets, openSettings, hideOverlay);
         cameraPad = new CameraPadWidget(game);
+
+        Overlay.Touch = touch;
     }
 
     public ActionButtonWidget ButtonWidget => buttons;
@@ -53,23 +60,55 @@ public sealed class OverlayRenderer
         var scale = cfg.GlobalScale * ImGuiHelpers.GlobalScale;
         var edit = cfg.EditMode;
 
-        if (cfg.Joystick.Enabled) joystick.Draw(cfg.Joystick, edit, scale);
-        else joystick.Release();
-
-        for (var i = 0; i < cfg.SkillGroups.Count; i++)
+        touch.BeginFrame();
+        try
         {
-            var group = cfg.SkillGroups[i];
-            if (group.Enabled) skills.Draw(i, group, edit, scale);
+            if (cfg.Joystick.Enabled) joystick.Draw(cfg.Joystick, edit, scale);
+            else joystick.Release();
+
+            for (var i = 0; i < cfg.SkillGroups.Count; i++)
+            {
+                var group = cfg.SkillGroups[i];
+                if (group.Enabled) skills.Draw(i, group, edit, scale);
+            }
+
+            for (var i = 0; i < cfg.Buttons.Count; i++)
+            {
+                var button = cfg.Buttons[i];
+                if (button.Enabled) buttons.Draw(i, button, edit, scale);
+            }
+
+            if (cfg.MenuBar.Enabled) menuBar.Draw(cfg.MenuBar, edit, scale);
+            if (cfg.CameraPad.Enabled) cameraPad.Draw(cfg.CameraPad, edit);
+
+            if (!edit && cfg.CameraPad.SecondFingerRotates) SecondFingerCamera(cfg.CameraPad);
+        }
+        finally
+        {
+            touch.EndFrame();
+        }
+    }
+
+    /// <summary>
+    /// Windows synthesizes mouse input only for the primary contact, so a second finger dragged across the world
+    /// does nothing on its own. Rotate the camera for it ourselves. Skipped while the primary finger is itself on
+    /// the world (the game is already handling that drag natively) so two fingers never rotate twice.
+    /// </summary>
+    private void SecondFingerCamera(CameraPadConfig cfg)
+    {
+        foreach (var p in touch.Pointers)
+        {
+            if (!p.IsMouse && p.Primary && p.Owner == 0 && p.Down) return;
         }
 
-        for (var i = 0; i < cfg.Buttons.Count; i++)
+        foreach (var p in touch.Pointers)
         {
-            var button = cfg.Buttons[i];
-            if (button.Enabled) buttons.Draw(i, button, edit, scale);
-        }
+            if (p.IsMouse || p.Primary || p.Owner != 0 || !p.Down || p.Delta == Vector2.Zero) continue;
 
-        if (cfg.MenuBar.Enabled) menuBar.Draw(cfg.MenuBar, edit, scale);
-        if (cfg.CameraPad.Enabled) cameraPad.Draw(cfg.CameraPad, edit);
+            var yaw = p.Delta.X * cfg.Sensitivity;
+            var pitch = -p.Delta.Y * cfg.Sensitivity * (cfg.InvertY ? -1f : 1f);
+            game.RotateCamera(yaw, pitch);
+        }
     }
 
     /// <summary>
@@ -89,5 +128,6 @@ public sealed class OverlayRenderer
     {
         joystick.Release();
         keys.ReleaseAll();
+        touch.ClearRegions();
     }
 }

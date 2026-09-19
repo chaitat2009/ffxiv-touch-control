@@ -159,7 +159,13 @@ public class CameraPadConfig
     /// <summary>Normalized rectangle (x, y, w, h) of the drag zone.</summary>
     public Vector4 Rect { get; set; } = new(0.55f, 0.15f, 0.42f, 0.42f);
 
-    /// <summary>Radians of yaw per pixel dragged.</summary>
+    /// <summary>
+    /// While a finger is busy on the joystick or a button, a second finger dragged on the world rotates the camera.
+    /// Windows never turns that second contact into mouse input, so the game cannot do it by itself.
+    /// </summary>
+    public bool SecondFingerRotates { get; set; } = true;
+
+    /// <summary>Radians of yaw per pixel dragged (camera pad and second-finger rotation).</summary>
     public float Sensitivity { get; set; } = 0.006f;
     public bool InvertY { get; set; } = false;
     public bool ShowOutline { get; set; } = true;

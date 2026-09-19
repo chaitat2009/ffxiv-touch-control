@@ -63,6 +63,22 @@ solution in Visual Studio) together with `TouchControl.json` and a `latest.zip` 
 3. `/touch` opens the settings; `/touch edit` lets you arrange the controls.
 
 
+## Multi-touch
+
+Windows turns only the *primary* touch contact into mouse input, so anything driven by the mouse (the game, and
+ImGui) is single-finger by construction. Every contact does produce its own `WM_POINTER*` message stream,
+though. The plugin subclasses the game window (`SetWindowSubclass`), reads those messages and drives the overlay
+from them ([TouchInput.cs](TouchControl/Input/TouchInput.cs)):
+
+* a touch that lands on an overlay control is swallowed before `DefWindowProc`, so no mouse is synthesized and
+  the game never sees it; that control owns the finger until it lifts;
+* a touch anywhere else passes through untouched, so tapping game UI and dragging the camera keep working;
+* while a finger holds a control, a second finger dragged on the world rotates the camera (the game would get
+  no input for it otherwise);
+* the real mouse is folded in as one more pointer, so everything still works without a touchscreen.
+
+Result: hold the joystick with one thumb and hit skills with the other, like a phone game.
+
 ## How input reaches the game
 
 Dalamud's `IKeyState` intentionally refuses to *press* keys, so movement and key buttons are delivered with
@@ -94,9 +110,9 @@ TouchControl/
 
 ## Known limitations
 
-* **One finger at a time.** Windows turns only the primary touch point into mouse input, and the overlay is
-  driven by that mouse pointer, so you cannot hold the joystick and tap a skill simultaneously yet. Real
-  multi-touch needs WM_POINTER handling on the game window and is the top item for the next version.
+* While a finger is on an overlay control, a second finger cannot click the game's *own* UI (hotbars, windows):
+  Windows only synthesizes mouse input for the first contact. Overlay controls and camera rotation do work with
+  the second finger.
 * Movement is 8-directional (keyboard emulation). True analog walking would need a hook on the game's
   movement input, which is deliberately avoided in this first version.
 * The camera pad writes the camera yaw/pitch directly and is marked experimental.

@@ -21,6 +21,9 @@ public sealed class KeySender : IDisposable
 
     public bool IsHeld(int vk) => held.Contains(vk);
 
+    /// <summary>The game's top-level window, also used by <see cref="TouchInput"/> for the WndProc subclass.</summary>
+    public nint GameWindow => GetGameWindow();
+
     public void Down(int vk)
     {
         if (vk <= 0 || !held.Add(vk)) return;

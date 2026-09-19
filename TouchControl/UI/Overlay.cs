@@ -4,6 +4,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
+using TouchControl.Input;
 
 namespace TouchControl.UI;
 
@@ -22,6 +23,9 @@ public static class Overlay
 
     /// <summary>Alpha multiplier applied to every colour drawn this frame (Configuration.Opacity).</summary>
     public static float Opacity = 1f;
+
+    /// <summary>Pointer source for the frame being drawn; set by the renderer before any control draws.</summary>
+    public static TouchInput Touch = null!;
 
     public static Vector2 DisplaySize => ImGui.GetIO().DisplaySize;
 
@@ -47,10 +51,11 @@ public static class Overlay
     }
 
     /// <summary>
-    /// Edit-mode handle covering the whole current window. Dragging moves the placement, the mouse wheel rescales it.
-    /// Returns true when the caller should skip its normal interaction because edit mode is on.
+    /// Edit-mode handle covering the whole current window. Dragging (any finger or the mouse) moves the placement,
+    /// the mouse wheel rescales it. Returns true when the caller should skip its normal interaction because edit
+    /// mode is on.
     /// </summary>
-    public static bool EditHandle(Placement placement, Vector2 topLeft, Vector2 size, string label, bool editMode, bool allowScale = true)
+    public static bool EditHandle(string id, Placement placement, Vector2 topLeft, Vector2 size, string label, bool editMode, bool allowScale = true)
     {
         if (!editMode) return false;
 
@@ -63,16 +68,18 @@ public static class Overlay
         dl.AddRectFilled(textPos - new Vector2(4, 2), textPos + textSize + new Vector2(4, 2), Col(0f, 0f, 0f, 0.7f), 3f);
         dl.AddText(textPos, Col(1f, 1f, 1f, 1f), label);
 
-        ImGui.SetCursorScreenPos(topLeft);
-        ImGui.InvisibleButton("##edit", size);
+        var key = TouchInput.Key("edit:" + id);
+        Touch.AddRegion(key, topLeft, topLeft + size);
 
-        if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+        var owner = Touch.Owner(key);
+        if (owner != null && owner.Down && owner.Delta != Vector2.Zero)
         {
-            var delta = ImGui.GetIO().MouseDelta / DisplaySize;
-            placement.Center = Vector2.Clamp(placement.Center + delta, Vector2.Zero, Vector2.One);
+            placement.Center = Vector2.Clamp(placement.Center + owner.Delta / DisplaySize, Vector2.Zero, Vector2.One);
         }
 
-        if (allowScale && ImGui.IsItemHovered())
+        if (owner != null && owner.Released) Plugin.Config.Save();
+
+        if (allowScale && ImGui.IsWindowHovered())
         {
             var wheel = ImGui.GetIO().MouseWheel;
             if (wheel != 0)
@@ -81,8 +88,6 @@ public static class Overlay
                 Plugin.Config.Save();
             }
         }
-
-        if (ImGui.IsItemDeactivated()) Plugin.Config.Save();
 
         return true;
     }
@@ -110,29 +115,33 @@ public static class Overlay
     }
 
     /// <summary>
-    /// A round touch button. Executes on press (IsItemActivated) rather than release, because that is what
-    /// mobile games do and it makes the controls feel snappy. Text is drawn inside when there is no icon.
+    /// A round touch button driven by the pointer table, so several fingers can press several buttons at once.
+    /// Fires on press rather than release, because that is what mobile games do and it feels snappier.
+    /// Text is drawn inside when there is no icon. With interactive == false nothing is registered, so in edit
+    /// mode the drag handle underneath receives the touch.
     /// </summary>
-    public static ButtonState CircleButton(string id, Vector2 center, float radius, uint fill, IDalamudTextureWrap? icon, string label, bool interactive = true)
+    public static ButtonState CircleButton(int key, Vector2 center, float radius, uint fill, IDalamudTextureWrap? icon, string label, bool interactive = true)
     {
         var dl = ImGui.GetWindowDrawList();
-        var diameter = radius * 2f;
 
-        // In edit mode (interactive == false) no item is submitted at all, otherwise it would sit on top of the
-        // edit-mode drag handle and steal the hover from it.
         var hovered = false;
         var held = false;
         var pressed = false;
         var released = false;
         if (interactive)
         {
-            ImGui.SetCursorScreenPos(center - new Vector2(radius, radius));
-            ImGui.InvisibleButton(id, new Vector2(diameter, diameter));
+            Touch.AddCircleRegion(key, center, radius);
 
-            hovered = ImGui.IsItemHovered();
-            held = ImGui.IsItemActive();
-            pressed = ImGui.IsItemActivated();
-            released = ImGui.IsItemDeactivated();
+            var owner = Touch.Owner(key);
+            if (owner != null)
+            {
+                held = owner.Down;
+                pressed = owner.Pressed;
+                released = owner.Released;
+            }
+
+            // Hover only means something for a real mouse.
+            hovered = !held && ImGui.IsWindowHovered() && Vector2.DistanceSquared(ImGui.GetMousePos(), center) <= radius * radius;
         }
 
         // Slight press feedback: shrink and brighten.

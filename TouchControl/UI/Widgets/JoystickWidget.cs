@@ -8,9 +8,12 @@ namespace TouchControl.UI.Widgets;
 /// <summary>
 /// Virtual left stick. The touch zone is a square window; the drawn base either sits in the middle or, in
 /// floating mode, appears wherever the finger lands. Knob offset / base radius is fed to the movement controller.
+/// The finger that lands on the zone owns the stick until it lifts, independent of any other finger.
 /// </summary>
 public sealed class JoystickWidget(MovementController movement)
 {
+    private static readonly int RegionKey = TouchInput.Key("joystick");
+
     private bool active;
     private Vector2 origin;
     private Vector2 knob;
@@ -35,19 +38,17 @@ public sealed class JoystickWidget(MovementController movement)
 
         try
         {
-            if (Overlay.EditHandle(cfg.Placement, topLeft, size, "Joystick", editMode))
+            if (Overlay.EditHandle("joystick", cfg.Placement, topLeft, size, "Joystick", editMode))
             {
                 Release();
                 DrawStick(cfg, center, center, baseR, knobR, false);
                 return;
             }
 
-            ImGui.SetCursorScreenPos(topLeft);
-            ImGui.InvisibleButton("##zone", size);
+            Overlay.Touch.AddRegion(RegionKey, topLeft, topLeft + size);
+            var owner = Overlay.Touch.Owner(RegionKey);
 
-            var mouse = ImGui.GetMousePos();
-
-            if (ImGui.IsItemActivated())
+            if (owner != null && owner.Pressed)
             {
                 active = true;
                 if (cfg.Floating)
@@ -56,7 +57,7 @@ public sealed class JoystickWidget(MovementController movement)
                     var margin = baseR + knobR;
                     var min = topLeft + new Vector2(margin, margin);
                     var max = topLeft + size - new Vector2(margin, margin);
-                    origin = max.X > min.X && max.Y > min.Y ? Vector2.Clamp(mouse, min, max) : center;
+                    origin = max.X > min.X && max.Y > min.Y ? Vector2.Clamp(owner.Pos, min, max) : center;
                 }
                 else
                 {
@@ -64,9 +65,9 @@ public sealed class JoystickWidget(MovementController movement)
                 }
             }
 
-            if (active && ImGui.IsItemActive())
+            if (active && owner != null && owner.Down)
             {
-                var delta = mouse - origin;
+                var delta = owner.Pos - origin;
                 var len = delta.Length();
                 if (len > baseR) delta *= baseR / len;
 

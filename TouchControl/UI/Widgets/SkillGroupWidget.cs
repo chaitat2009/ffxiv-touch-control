@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using TouchControl.Game;
+using TouchControl.Input;
 
 namespace TouchControl.UI.Widgets;
 
@@ -48,7 +49,7 @@ public sealed class SkillGroupWidget(GameActions game)
 
         try
         {
-            var edit = Overlay.EditHandle(cfg.Placement, topLeft, size, $"Hotbar {cfg.Hotbar + 1}", editMode);
+            var edit = Overlay.EditHandle($"skills{index}", cfg.Placement, topLeft, size, $"Hotbar {cfg.Hotbar + 1}", editMode);
 
             for (var i = 0; i < count; i++)
             {
@@ -66,7 +67,7 @@ public sealed class SkillGroupWidget(GameActions game)
                 var label = slot.Empty ? $"{slotIndex + 1}" : string.Empty;
                 var fill = Overlay.Col(0.08f, 0.08f, 0.1f, 0.65f);
 
-                var state = Overlay.CircleButton($"##slot{i}", pos, radius, fill, icon, label, interactive: !edit && !slot.Empty);
+                var state = Overlay.CircleButton(TouchInput.Key($"skills{index}", i), pos, radius, fill, icon, label, interactive: !edit && !slot.Empty);
 
                 if (state.Pressed)
                     game.ExecuteSlot(cfg.Hotbar, slotIndex);

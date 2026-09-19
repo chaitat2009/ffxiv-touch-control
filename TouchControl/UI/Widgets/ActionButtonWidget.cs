@@ -38,8 +38,8 @@ public sealed class ActionButtonWidget(GameActions game, KeySender keys, SheetCa
         {
             Resolve(cfg, out var label, out var icon, out var glyph);
 
-            var edit = Overlay.EditHandle(cfg.Placement, topLeft, size, label, editMode);
-            var state = Overlay.CircleButton("##btn", center, radius, Overlay.Col(cfg.Color), icon, glyph == null ? label : string.Empty, interactive: !edit);
+            var edit = Overlay.EditHandle($"button{index}", cfg.Placement, topLeft, size, label, editMode);
+            var state = Overlay.CircleButton(TouchInput.Key("button", index), center, radius, Overlay.Col(cfg.Color), icon, glyph == null ? label : string.Empty, interactive: !edit);
 
             if (glyph != null)
                 Overlay.IconGlyph(center, glyph.Value, Overlay.Col(1f, 1f, 1f, 0.95f));

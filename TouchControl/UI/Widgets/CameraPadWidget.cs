@@ -1,16 +1,20 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using TouchControl.Game;
+using TouchControl.Input;
 
 namespace TouchControl.UI.Widgets;
 
 /// <summary>
-/// Optional invisible drag zone that rotates the camera, for setups where the game does not get a usable
-/// left-drag from the touch layer. Off by default because a normal touch drag on the world already orbits
-/// the camera in FFXIV.
+/// Optional drag zone that rotates the camera, for setups where the game does not get a usable left-drag from
+/// the touch layer. Off by default because a normal touch drag on the world already orbits the camera in FFXIV,
+/// and a second finger on the world does so through <see cref="OverlayRenderer"/> while a control is held.
 /// </summary>
 public sealed class CameraPadWidget(GameActions game)
 {
+    private static readonly int RegionKey = TouchInput.Key("camerapad");
+    private static readonly int EditKey = TouchInput.Key("edit:camerapad");
+
     public void Draw(CameraPadConfig cfg, bool editMode)
     {
         var display = Overlay.DisplaySize;
@@ -36,33 +40,28 @@ public sealed class CameraPadWidget(GameActions game)
                 var textSize = ImGui.CalcTextSize(label);
                 dl.AddText(topLeft + new Vector2((size.X - textSize.X) / 2f, 4f), Overlay.Col(1f, 1f, 1f, 1f), label);
 
-                ImGui.SetCursorScreenPos(topLeft);
-                ImGui.InvisibleButton("##edit", size);
-                if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Left))
+                Overlay.Touch.AddRegion(EditKey, topLeft, topLeft + size);
+                var handle = Overlay.Touch.Owner(EditKey);
+                if (handle != null && handle.Down && handle.Delta != Vector2.Zero)
                 {
-                    var delta = ImGui.GetIO().MouseDelta / display;
+                    var delta = handle.Delta / display;
                     cfg.Rect = cfg.Rect with { X = cfg.Rect.X + delta.X, Y = cfg.Rect.Y + delta.Y };
                 }
 
-                if (ImGui.IsItemDeactivated()) Plugin.Config.Save();
+                if (handle != null && handle.Released) Plugin.Config.Save();
                 return;
             }
 
             if (cfg.ShowOutline)
                 dl.AddRect(topLeft, topLeft + size, Overlay.Col(1f, 1f, 1f, 0.12f), 6f, ImDrawFlags.RoundCornersAll, 1f);
 
-            ImGui.SetCursorScreenPos(topLeft);
-            ImGui.InvisibleButton("##pad", size);
-
-            if (ImGui.IsItemActive())
+            Overlay.Touch.AddRegion(RegionKey, topLeft, topLeft + size);
+            var owner = Overlay.Touch.Owner(RegionKey);
+            if (owner != null && owner.Down && owner.Delta != Vector2.Zero)
             {
-                var delta = ImGui.GetIO().MouseDelta;
-                if (delta != Vector2.Zero)
-                {
-                    var yaw = delta.X * cfg.Sensitivity;
-                    var pitch = -delta.Y * cfg.Sensitivity * (cfg.InvertY ? -1f : 1f);
-                    game.RotateCamera(yaw, pitch);
-                }
+                var yaw = owner.Delta.X * cfg.Sensitivity;
+                var pitch = -owner.Delta.Y * cfg.Sensitivity * (cfg.InvertY ? -1f : 1f);
+                game.RotateCamera(yaw, pitch);
             }
         }
         finally

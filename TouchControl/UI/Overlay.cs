@@ -118,13 +118,22 @@ public static class Overlay
         var dl = ImGui.GetWindowDrawList();
         var diameter = radius * 2f;
 
-        ImGui.SetCursorScreenPos(center - new Vector2(radius, radius));
-        ImGui.InvisibleButton(id, new Vector2(diameter, diameter));
+        // In edit mode (interactive == false) no item is submitted at all, otherwise it would sit on top of the
+        // edit-mode drag handle and steal the hover from it.
+        var hovered = false;
+        var held = false;
+        var pressed = false;
+        var released = false;
+        if (interactive)
+        {
+            ImGui.SetCursorScreenPos(center - new Vector2(radius, radius));
+            ImGui.InvisibleButton(id, new Vector2(diameter, diameter));
 
-        var hovered = interactive && ImGui.IsItemHovered();
-        var held = interactive && ImGui.IsItemActive();
-        var pressed = interactive && ImGui.IsItemActivated();
-        var released = interactive && ImGui.IsItemDeactivated();
+            hovered = ImGui.IsItemHovered();
+            held = ImGui.IsItemActive();
+            pressed = ImGui.IsItemActivated();
+            released = ImGui.IsItemDeactivated();
+        }
 
         // Slight press feedback: shrink and brighten.
         var drawRadius = held ? radius * 0.92f : radius;

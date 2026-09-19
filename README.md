@@ -94,6 +94,9 @@ TouchControl/
 
 ## Known limitations
 
+* **One finger at a time.** Windows turns only the primary touch point into mouse input, and the overlay is
+  driven by that mouse pointer, so you cannot hold the joystick and tap a skill simultaneously yet. Real
+  multi-touch needs WM_POINTER handling on the game window and is the top item for the next version.
 * Movement is 8-directional (keyboard emulation). True analog walking would need a hook on the game's
   movement input, which is deliberately avoided in this first version.
 * The camera pad writes the camera yaw/pitch directly and is marked experimental.

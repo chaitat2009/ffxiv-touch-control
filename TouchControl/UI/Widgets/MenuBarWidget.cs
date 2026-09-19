@@ -51,7 +51,9 @@ public sealed class MenuBarWidget(GameActions game, KeySender keys, SheetCache s
             {
                 var state = Overlay.CircleButton("##esc", new Vector2(x, y), radius, fill, null, string.Empty, !edit);
                 Overlay.IconGlyph(new Vector2(x, y), FontAwesomeIcon.Bars, glyphColor);
-                if (state.Pressed && !edit) keys.Tap((int)VirtualKey.ESCAPE);
+                // Held for as long as it is touched, like a physical key, so the game reliably sees the press.
+                if (state.Pressed) keys.Down((int)VirtualKey.ESCAPE);
+                if (state.Released) keys.Up((int)VirtualKey.ESCAPE);
                 x += step;
             }
 

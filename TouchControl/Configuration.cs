@@ -172,6 +172,21 @@ public class CameraPadConfig
 }
 
 [Serializable]
+public class BridgeConfig
+{
+    /// <summary>Accept connections from the Android companion app.</summary>
+    public bool Enabled { get; set; } = true;
+
+    public int Port { get; set; } = 47800;
+
+    /// <summary>Listen on every interface instead of loopback only. Needed when the phone is a different device.</summary>
+    public bool AllowRemote { get; set; } = false;
+
+    /// <summary>Do not draw the in-game overlay while a phone is connected; the phone is the control surface then.</summary>
+    public bool HideOverlayWhileConnected { get; set; } = true;
+}
+
+[Serializable]
 public class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 1;
@@ -189,11 +204,17 @@ public class Configuration : IPluginConfiguration
     /// <summary>Hide the overlay while a game text field has keyboard focus (chat, search boxes).</summary>
     public bool HideWhileTyping { get; set; } = true;
 
+    /// <summary>While the overlay is hidden, keep a small translucent eye button on screen that brings it back.</summary>
+    public bool ShowRestoreButton { get; set; } = true;
+    public Placement RestoreButton { get; set; } = new() { Center = new Vector2(0.975f, 0.045f) };
+    public float RestoreButtonRadius { get; set; } = 18f;
+
     public JoystickConfig Joystick { get; set; } = new();
     public List<SkillGroupConfig> SkillGroups { get; set; } = [];
     public List<ActionButtonConfig> Buttons { get; set; } = [];
     public MenuBarConfig MenuBar { get; set; } = new();
     public CameraPadConfig CameraPad { get; set; } = new();
+    public BridgeConfig Bridge { get; set; } = new();
 
     /// <summary>Set once the default layout has been generated, so an intentionally emptied list stays empty.</summary>
     public bool LayoutInitialized { get; set; } = false;

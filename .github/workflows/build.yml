@@ -11,18 +11,20 @@ permissions:
 
 env:
   PLUGIN_NAME: TouchControl
-  DALAMUD_HOME: ${{ github.workspace }}/dalamud
 
 jobs:
-  build:
+  plugin:
+    name: Dalamud plugin
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.out.outputs.version }}
+    env:
+      DALAMUD_HOME: ${{ github.workspace }}/dalamud
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
@@ -31,88 +33,123 @@ jobs:
         run: |
           Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
           Expand-Archive -Force latest.zip "$env:DALAMUD_HOME"
-          Get-Content "$env:DALAMUD_HOME/Dalamud.deps.json" | Select-Object -First 5
-
-      - name: Restore
-        run: dotnet restore
 
       - name: Build (Release)
-        run: dotnet build --no-restore -c Release
+        run: dotnet build -c Release
 
       - name: Collect output
         id: out
         shell: pwsh
         run: |
-          # DalamudPackager writes <OutputPath>/<AssemblyName>/; OutputPath differs between plain `dotnet build`
-          # (bin/Release) and an x64 solution build (bin/x64/Release), so find the manifest instead of guessing.
+          # DalamudPackager writes <OutputPath>/<AssemblyName>/; find the manifest instead of guessing the path.
           $manifestFile = Get-ChildItem -Path "$env:PLUGIN_NAME/bin" -Recurse -Filter "$env:PLUGIN_NAME.json" |
             Where-Object { $_.Directory.Name -eq $env:PLUGIN_NAME } | Select-Object -First 1
           if (-not $manifestFile) { throw "Packager output not found under $env:PLUGIN_NAME/bin" }
           $dir = $manifestFile.Directory.FullName
-          Get-ChildItem $dir
           if (-not (Test-Path "$dir/latest.zip")) {
             Compress-Archive -Path "$dir/*" -DestinationPath "$dir/latest.zip" -Force
           }
           $manifest = Get-Content "$dir/$env:PLUGIN_NAME.json" | ConvertFrom-Json
           "version=$($manifest.AssemblyVersion)" >> $env:GITHUB_OUTPUT
-          "dir=$dir" >> $env:GITHUB_OUTPUT
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item "$dir/latest.zip" out/
+          Copy-Item "$dir/$env:PLUGIN_NAME.json" out/
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PLUGIN_NAME }}-${{ steps.out.outputs.version }}
-          path: |
-            ${{ steps.out.outputs.dir }}/latest.zip
-            ${{ steps.out.outputs.dir }}/${{ env.PLUGIN_NAME }}.json
+          name: plugin
+          path: out/
 
-      # Everything below only runs for pushes to main: publish a release and refresh repo.json so the
-      # in-game custom repository (raw.githubusercontent.com/.../main/repo.json) always points at a real zip.
+  android:
+    name: Android companion app
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-35 build-tools;35.0.0 platform-tools
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/TouchControlCompanion.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/
+
+  publish:
+    name: Release and repo.json
+    needs: [plugin, android]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Create or update release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plugin.outputs.version }}
         run: |
-          $tag = "v${{ steps.out.outputs.version }}"
-          $zip = "${{ steps.out.outputs.dir }}/latest.zip"
-          gh release view $tag 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag $zip --title "Touch Control $tag" --notes "Automated build of ${{ github.sha }}." --latest
-          } else {
-            gh release upload $tag $zip --clobber
-          }
+          set -e
+          tag="v$VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" artifacts/plugin/latest.zip artifacts/android/TouchControlCompanion.apk --clobber
+          else
+            gh release create "$tag" artifacts/plugin/latest.zip artifacts/android/TouchControlCompanion.apk \
+              --title "Touch Control $tag" \
+              --notes "Automated build of ${{ github.sha }}. latest.zip is the Dalamud plugin, TouchControlCompanion.apk the Android overlay app." \
+              --latest
+          fi
 
       - name: Regenerate repo.json
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: pwsh
         run: |
-          $manifest = Get-Content "${{ steps.out.outputs.dir }}/$env:PLUGIN_NAME.json" | ConvertFrom-Json
-          $link = "https://github.com/${{ github.repository }}/releases/latest/download/latest.zip"
-
-          $entry = [ordered]@{}
-          foreach ($p in $manifest.PSObject.Properties) { $entry[$p.Name] = $p.Value }
-          $entry["IsHide"] = $false
-          $entry["IsTestingExclusive"] = $false
-          $entry["DownloadLinkInstall"] = $link
-          $entry["DownloadLinkTesting"] = $link
-          $entry["DownloadLinkUpdate"] = $link
-          $entry["DownloadCount"] = 0
-          $entry["LastUpdate"] = [int64][Math]::Floor((Get-Date -AsUTC).Subtract([datetime]'1970-01-01').TotalSeconds)
-
-          ConvertTo-Json -InputObject $entry -Depth 8 -AsArray | Set-Content -Encoding utf8 repo.json
-          Get-Content repo.json
+          python3 - <<'PY'
+          import json, time
+          m = json.load(open("artifacts/plugin/TouchControl.json", encoding="utf-8-sig"))
+          link = "https://github.com/${{ github.repository }}/releases/latest/download/latest.zip"
+          m.update({
+              "IsHide": False,
+              "IsTestingExclusive": False,
+              "DownloadLinkInstall": link,
+              "DownloadLinkTesting": link,
+              "DownloadLinkUpdate": link,
+              "DownloadCount": 0,
+              "LastUpdate": int(time.time()),
+          })
+          json.dump([m], open("repo.json", "w", encoding="utf-8"), indent=2)
+          PY
+          cat repo.json
 
       - name: Commit repo.json
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add repo.json
-          git diff --cached --quiet
-          if ($LASTEXITCODE -ne 0) {
-            git commit -m "chore: update repo.json for v${{ steps.out.outputs.version }} [skip ci]"
+          if git diff --cached --quiet; then
+            echo "repo.json unchanged"
+          else
+            git commit -m "chore: update repo.json for v${{ needs.plugin.outputs.version }} [skip ci]"
             git push
-          } else {
-            Write-Host "repo.json unchanged"
-          }
+          fi

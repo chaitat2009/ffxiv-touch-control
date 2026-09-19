@@ -65,6 +65,11 @@ public sealed class ConfigWindow : Window
             if (tab.Success) DrawMenuBar();
         }
 
+        using (var tab = ImRaii.TabItem("Phone app"))
+        {
+            if (tab.Success) DrawBridge();
+        }
+
         using (var tab = ImRaii.TabItem("Camera pad"))
         {
             if (tab.Success) DrawCameraPad();
@@ -87,6 +92,9 @@ public sealed class ConfigWindow : Window
         Float("Global scale", Cfg.GlobalScale, 0.4f, 3f, v => Cfg.GlobalScale = v);
         Float("Opacity", Cfg.Opacity, 0.1f, 1f, v => Cfg.Opacity = v);
         Bool("Hide while typing in chat", Cfg.HideWhileTyping, v => Cfg.HideWhileTyping = v);
+        Bool("Keep a small eye button on screen while hidden (tap it to show the overlay again)", Cfg.ShowRestoreButton, v => Cfg.ShowRestoreButton = v);
+        if (Cfg.ShowRestoreButton)
+            Float("Eye button size", Cfg.RestoreButtonRadius, 10f, 40f, v => Cfg.RestoreButtonRadius = v);
 
         ImGui.Separator();
         ImGui.Text("Key delivery");
@@ -375,11 +383,70 @@ public sealed class ConfigWindow : Window
         Bool("Show faint outline", c.ShowOutline, v => c.ShowOutline = v);
     }
 
+    private static void DrawBridge()
+    {
+        var b = Cfg.Bridge;
+        var server = Plugin.Instance?.Bridge;
+
+        ImGui.TextWrapped("The Android companion app draws the controls on the phone (native multi-touch) and talks to this plugin over TCP. On an Android emulator setup both run on the same device, so the default loopback address works.");
+        ImGui.Spacing();
+
+        if (server != null)
+        {
+            if (server.Running)
+                ImGui.Text($"Status: listening on port {b.Port}, {server.ClientCount} app(s) connected");
+            else
+                ImGui.Text($"Status: stopped{(server.LastError != null ? " - " + server.LastError : string.Empty)}");
+        }
+
+        var enabled = b.Enabled;
+        if (ImGui.Checkbox("Enable phone bridge", ref enabled))
+        {
+            b.Enabled = enabled;
+            Cfg.Save();
+            RestartBridge();
+        }
+
+        var port = b.Port;
+        ImGui.SetNextItemWidth(120f);
+        if (ImGui.InputInt("Port", ref port))
+        {
+            b.Port = Math.Clamp(port, 1024, 65535);
+            Cfg.Save();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Apply / restart")) RestartBridge();
+
+        var remote = b.AllowRemote;
+        if (ImGui.Checkbox("Allow connections from other devices (LAN)", ref remote))
+        {
+            b.AllowRemote = remote;
+            Cfg.Save();
+            RestartBridge();
+        }
+
+        ImGui.TextDisabled("Only needed when the phone is not the device running the game. Anyone on the network could then send input.");
+
+        Bool("Hide the in-game overlay while a phone is connected", b.HideOverlayWhileConnected, v => b.HideOverlayWhileConnected = v);
+
+        ImGui.Separator();
+        ImGui.TextWrapped("In the app: host 127.0.0.1 (same device) or this PC's LAN address, port as above. Movement uses the joystick key settings from the Joystick tab; camera uses the Camera pad sensitivity.");
+    }
+
+    private static void RestartBridge()
+    {
+        var server = Plugin.Instance?.Bridge;
+        if (server == null) return;
+        if (Cfg.Bridge.Enabled) server.Start(Cfg.Bridge.Port, Cfg.Bridge.AllowRemote);
+        else server.Stop();
+    }
+
     private static void DrawHelp()
     {
         ImGui.TextWrapped("Commands");
         ImGui.BulletText("/touch            toggle this window");
-        ImGui.BulletText("/touch on | off   show or hide the overlay");
+        ImGui.BulletText("/touch on | off   show or hide the overlay (the eye button in the corner also shows it again)");
         ImGui.BulletText("/touch edit       toggle edit mode");
         ImGui.BulletText("/touch reset      restore the default layout");
 

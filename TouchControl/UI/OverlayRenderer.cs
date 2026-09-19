@@ -48,13 +48,32 @@ public sealed class OverlayRenderer
     {
         var cfg = Plugin.Config;
 
-        if (!cfg.Enabled || !Plugin.ClientState.IsLoggedIn || (cfg.HideWhileTyping && ImGui.GetIO().WantTextInput))
+        if (!Plugin.ClientState.IsLoggedIn || (cfg.HideWhileTyping && ImGui.GetIO().WantTextInput))
         {
             ReleaseEverything();
             return;
         }
 
         updatesWithoutDraw = 0;
+
+        // With a phone connected the phone is the control surface; drawing the same controls in-game only clutters.
+        if (cfg.Bridge.HideOverlayWhileConnected && Plugin.Instance?.Bridge.ClientCount > 0)
+        {
+            joystick.Release();
+            touch.ClearRegions();
+            return;
+        }
+
+        if (!cfg.Enabled)
+        {
+            // Release keys but keep the pointer regions alive: the restore button registers its own each frame.
+            joystick.Release();
+            keys.ReleaseAll();
+            if (cfg.ShowRestoreButton) DrawRestoreButton(cfg);
+            else touch.ClearRegions();
+            return;
+        }
+
         Overlay.Opacity = cfg.Opacity;
 
         var scale = cfg.GlobalScale * ImGuiHelpers.GlobalScale;
@@ -85,6 +104,45 @@ public sealed class OverlayRenderer
         }
         finally
         {
+            touch.EndFrame();
+        }
+    }
+
+    /// <summary>
+    /// The one control that survives hiding: a faint eye in the corner that turns the overlay back on, so a
+    /// touchscreen user is never stuck having to type /touch on. Draggable in edit mode like everything else.
+    /// </summary>
+    private void DrawRestoreButton(Configuration cfg)
+    {
+        var radius = cfg.RestoreButtonRadius * cfg.GlobalScale * ImGuiHelpers.GlobalScale * cfg.RestoreButton.Scale;
+        var size = new Vector2((radius + 4f) * 2f);
+        var center = Overlay.ToScreen(cfg.RestoreButton.Center);
+        var topLeft = center - size / 2f;
+
+        Overlay.Opacity = Math.Max(0.35f, cfg.Opacity * 0.6f);
+
+        if (!Overlay.BeginControl("TouchControl##restore", topLeft, size))
+        {
+            ImGui.End();
+            return;
+        }
+
+        touch.BeginFrame();
+        try
+        {
+            var edit = Overlay.EditHandle("restore", cfg.RestoreButton, topLeft, size, "Show", cfg.EditMode);
+            var state = Overlay.CircleButton(TouchInput.Key("restore"), center, radius, Overlay.Col(0.08f, 0.08f, 0.1f, 0.6f), null, string.Empty, !edit);
+            Overlay.IconGlyph(center, Dalamud.Interface.FontAwesomeIcon.Eye, Overlay.Col(1f, 1f, 1f, 0.9f));
+
+            if (state.Pressed && !edit)
+            {
+                cfg.Enabled = true;
+                cfg.Save();
+            }
+        }
+        finally
+        {
+            ImGui.End();
             touch.EndFrame();
         }
     }

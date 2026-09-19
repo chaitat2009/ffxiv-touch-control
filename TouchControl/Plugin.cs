@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using TouchControl.Bridge;
 using TouchControl.Game;
 using TouchControl.Input;
 using TouchControl.UI;
@@ -18,6 +19,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
+    [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     internal static Configuration Config { get; private set; } = null!;
@@ -32,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
     internal KeySender Keys { get; }
     internal TouchInput Touch { get; }
     internal OverlayRenderer Overlay { get; }
+    internal BridgeServer Bridge { get; }
 
     public Plugin()
     {
@@ -49,6 +52,9 @@ public sealed class Plugin : IDalamudPlugin
         var sheets = new SheetCache();
 
         Overlay = new OverlayRenderer(game, Keys, Touch, sheets, ToggleConfig, HideOverlay);
+        Bridge = new BridgeServer(game, Keys, sheets);
+        if (Config.Bridge.Enabled) Bridge.Start(Config.Bridge.Port, Config.Bridge.AllowRemote);
+
         configWindow = new ConfigWindow(sheets);
         windowSystem.AddWindow(configWindow);
 
@@ -75,6 +81,7 @@ public sealed class Plugin : IDalamudPlugin
 
         windowSystem.RemoveAllWindows();
         Overlay.ReleaseEverything();
+        Bridge.Dispose();
         Touch.Dispose();
         Keys.Dispose();
 
@@ -93,6 +100,7 @@ public sealed class Plugin : IDalamudPlugin
         if (!Touch.Installed && Touch.InstallError == null) Touch.TryInstall(Keys.GameWindow);
 
         Overlay.OnFrameworkUpdate();
+        Bridge.Tick();
         game.Drain();
     }
 

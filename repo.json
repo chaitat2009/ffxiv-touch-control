@@ -3,8 +3,8 @@
     "Author": "chaitat2009",
     "Name": "Touch Control",
     "InternalName": "TouchControl",
-    "AssemblyVersion": "0.1.0.0",
-    "Description": "Draws a mobile-game style control overlay on top of FFXIV for touchscreens and handhelds.\r\nA virtual joystick drives movement, a configurable skill wheel mirrors your hotbars with cooldowns,\r\nand quick buttons open the main menu windows, jump, sprint, target and interact.\r\nEvery control can be dragged and resized in edit mode.",
+    "AssemblyVersion": "0.2.0.0",
+    "Description": "Draws a mobile-game style control overlay on top of FFXIV for touchscreens and handhelds.\nA virtual joystick drives movement, a configurable skill wheel mirrors your hotbars with cooldowns,\nand quick buttons open the main menu windows, jump, sprint, target and interact.\nEvery control can be dragged and resized in edit mode.",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/chaitat2009/ffxiv-touch-control",
     "Tags": [
@@ -28,6 +28,6 @@
     "DownloadLinkTesting": "https://github.com/chaitat2009/ffxiv-touch-control/releases/latest/download/latest.zip",
     "DownloadLinkUpdate": "https://github.com/chaitat2009/ffxiv-touch-control/releases/latest/download/latest.zip",
     "DownloadCount": 0,
-    "LastUpdate": 1789806966
+    "LastUpdate": 1789815731
   }
 ]

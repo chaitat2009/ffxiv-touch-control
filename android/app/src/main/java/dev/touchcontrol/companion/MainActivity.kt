@@ -31,7 +31,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 
     private lateinit var root: LinearLayout
-    private lateinit var layout: Layout
+    private lateinit var model: Layout
     private lateinit var status: TextView
     private val refresh: () -> Unit = { updateStatus() }
 
@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        layout = Prefs.layout(this)
+        model = Prefs.layout(this)
 
         val scroll = ScrollView(this)
         root = LinearLayout(this).apply {
@@ -73,7 +73,7 @@ class MainActivity : AppCompatActivity() {
     // ---- persistence ------------------------------------------------------------------------------------
 
     private fun save() {
-        Prefs.saveLayout(this, layout)
+        Prefs.saveLayout(this, model)
         if (OverlayService.running) OverlayService.start(this, OverlayService.ACTION_RELOAD)
     }
 
@@ -123,52 +123,52 @@ class MainActivity : AppCompatActivity() {
         text("Edit layout: drag any control to move it, tap Done when finished. The overlay keeps running in the background; use the notification to hide or stop it.")
 
         section("Size and look")
-        seek("Overall scale", (layout.globalScale * 100).toInt(), 50, 200, "%") { layout.globalScale = it / 100f; save() }
-        seek("Opacity", (layout.opacity * 100).toInt(), 20, 100, "%") { layout.opacity = it / 100f; save() }
+        seek("Overall scale", (model.globalScale * 100).toInt(), 50, 200, "%") { model.globalScale = it / 100f; save() }
+        seek("Opacity", (model.opacity * 100).toInt(), 20, 100, "%") { model.opacity = it / 100f; save() }
 
         section("Joystick")
-        check("Enabled", layout.joystick.enabled) { layout.joystick.enabled = it; save() }
-        check("Floating (base appears where you touch)", layout.joystick.floating) { layout.joystick.floating = it; save() }
-        seek("Size", layout.joystick.baseRadiusDp.toInt(), 40, 140, " dp") {
-            layout.joystick.baseRadiusDp = it.toFloat()
-            layout.joystick.zoneRadiusDp = it * 1.7f
-            layout.joystick.knobRadiusDp = it * 0.4f
+        check("Enabled", model.joystick.enabled) { model.joystick.enabled = it; save() }
+        check("Floating (base appears where you touch)", model.joystick.floating) { model.joystick.floating = it; save() }
+        seek("Size", model.joystick.baseRadiusDp.toInt(), 40, 140, " dp") {
+            model.joystick.baseRadiusDp = it.toFloat()
+            model.joystick.zoneRadiusDp = it * 1.7f
+            model.joystick.knobRadiusDp = it * 0.4f
             save()
         }
-        seek("Dead zone", (layout.joystick.deadZone * 100).toInt(), 0, 60, "%") { layout.joystick.deadZone = it / 100f; save() }
+        seek("Dead zone", (model.joystick.deadZone * 100).toInt(), 0, 60, "%") { model.joystick.deadZone = it / 100f; save() }
 
         section("Skill wheels")
-        for ((index, w) in layout.wheels.withIndex()) wheelEditor(index, w)
+        for ((index, w) in model.wheels.withIndex()) wheelEditor(index, w)
         button("Add skill wheel") {
-            layout.wheels.add(WheelConfig("wheel${System.currentTimeMillis()}").apply { hotbar = (layout.wheels.size).coerceAtMost(9) })
+            model.wheels.add(WheelConfig("wheel${System.currentTimeMillis()}").apply { hotbar = (model.wheels.size).coerceAtMost(9) })
             save(); rebuildUi()
         }
 
         section("Quick buttons")
-        for ((index, b) in layout.buttons.withIndex()) buttonEditor(index, b)
+        for ((index, b) in model.buttons.withIndex()) buttonEditor(index, b)
         button("Add button") {
-            layout.buttons.add(ButtonConfig("button${System.currentTimeMillis()}").apply { kind = ButtonKind.KEY; value = Layout.VK_SPACE })
+            model.buttons.add(ButtonConfig("button${System.currentTimeMillis()}").apply { kind = ButtonKind.KEY; value = Layout.VK_SPACE })
             save(); rebuildUi()
         }
 
         section("Menu bar")
-        check("Enabled", layout.menuBar.enabled) { layout.menuBar.enabled = it; save() }
-        for ((index, id) in layout.menuBar.commands.withIndex()) {
+        check("Enabled", model.menuBar.enabled) { model.menuBar.enabled = it; save() }
+        for ((index, id) in model.menuBar.commands.withIndex()) {
             row {
-                catalogSpinner(it, Bridge.mainCommandCatalog, id, "Main command") { v -> layout.menuBar.commands[index] = v; save() }
-                button("Remove", it) { layout.menuBar.commands.removeAt(index); save(); rebuildUi() }
+                catalogSpinner(it, Bridge.mainCommandCatalog, id, "Main command") { v -> model.menuBar.commands[index] = v; save() }
+                button("Remove", it) { model.menuBar.commands.removeAt(index); save(); rebuildUi() }
             }
         }
-        button("Add menu command") { layout.menuBar.commands.add(2); save(); rebuildUi() }
+        button("Add menu command") { model.menuBar.commands.add(2); save(); rebuildUi() }
 
         section("Camera pad")
-        check("Enabled (only if dragging on the game does not rotate the camera)", layout.cameraPad.enabled) { layout.cameraPad.enabled = it; save() }
-        seek("Gain", (layout.cameraPad.gain * 100).toInt(), 25, 400, "%") { layout.cameraPad.gain = it / 100f; save() }
+        check("Enabled (only if dragging on the game does not rotate the camera)", model.cameraPad.enabled) { model.cameraPad.enabled = it; save() }
+        seek("Gain", (model.cameraPad.gain * 100).toInt(), 25, 400, "%") { model.cameraPad.gain = it / 100f; save() }
 
         section("Reset")
         button("Reset layout to defaults") {
             Prefs.resetLayout(this)
-            layout = Layout.defaults()
+            model = Layout.defaults()
             save(); rebuildUi()
         }
     }
@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity() {
         }
         seekIn(box, "Button size", w.buttonRadiusDp.toInt(), 14, 60, " dp") { w.buttonRadiusDp = it.toFloat(); save() }
         seekIn(box, "Ring distance", w.ringRadiusDp.toInt(), 40, 220, " dp") { w.ringRadiusDp = it.toFloat(); save() }
-        box.addView(Button(this).apply { text = "Remove wheel"; setOnClickListener { layout.wheels.removeAt(index); save(); rebuildUi() } })
+        box.addView(Button(this).apply { text = "Remove wheel"; setOnClickListener { model.wheels.removeAt(index); save(); rebuildUi() } })
     }
 
     private fun buttonEditor(index: Int, b: ButtonConfig) {
@@ -230,7 +230,7 @@ class MainActivity : AppCompatActivity() {
         label.setOnFocusChangeListener { _, has -> if (!has && label.text.toString() != b.label) { b.label = label.text.toString(); save() } }
         box.addView(label)
         seekIn(box, "Size", b.radiusDp.toInt(), 14, 60, " dp") { b.radiusDp = it.toFloat(); save() }
-        box.addView(Button(this).apply { text = "Remove button"; setOnClickListener { layout.buttons.removeAt(index); save(); rebuildUi() } })
+        box.addView(Button(this).apply { text = "Remove button"; setOnClickListener { model.buttons.removeAt(index); save(); rebuildUi() } })
     }
 
     // ---- widgets ----------------------------------------------------------------------------------------
